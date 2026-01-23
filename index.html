@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <link rel="icon" type="image/png" href="vib.png">
+    <title>Online Dokon</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --dark-bg: #050505;
+            --card-bg: #111;
+            --accent: #00d2ff;
+            --text-gray: #a0a0a0;
+            --border: #222;
+            --edit-color: #f1c40f;
+            --delete-color: #e74c3c;
+            --success: #2ecc71;
+            --overlay: rgba(0, 0, 0, 0.95);
+        }
+
+        body {
+            background-color: var(--dark-bg);
+            color: white;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .hidden { display: none !important; }
+
+        #toast {
+            position: fixed; top: 20px; right: 20px; padding: 15px 25px;
+            border-radius: 12px; color: white; font-weight: bold;
+            z-index: 9999; transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform: translateX(150%); box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        #toast.show { transform: translateX(0); }
+
+        .confirm-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); display: flex; justify-content: center;
+            align-items: center; z-index: 5000; backdrop-filter: blur(8px);
+        }
+        .confirm-box {
+            background: var(--card-bg); padding: 30px; border-radius: 20px;
+            border: 1px solid var(--border); width: 90%; max-width: 350px; text-align: center;
+            position: relative;
+        }
+        
+        .close-modal {
+            position: absolute; top: 15px; right: 15px; color: var(--text-gray);
+            font-size: 20px; cursor: pointer; transition: 0.3s;
+        }
+        .close-modal:hover { color: var(--delete-color); }
+
+        header {
+            background: #0a0a0a; padding: 15px 5%;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1000;
+        }
+        .logo-img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent); }
+        .search-box { flex: 1; margin: 0 20px; }
+        .search-box input { 
+            width: 100%; padding: 12px 20px; border-radius: 25px; 
+            background: #151515; border: 1px solid var(--border); color: white; outline: none; transition: 0.3s;
+        }
+        .search-box input:focus { border-color: var(--accent); box-shadow: 0 0 10px rgba(0, 210, 255, 0.2); }
+
+        #admin-panel { display: flex; flex-direction: row; min-height: 90vh; }
+        .sidebar { width: 260px; background: #0a0a0a; border-right: 1px solid var(--border); padding: 25px; }
+        .sidebar button { 
+            width: 100%; padding: 14px; background: none; border: none; color: var(--text-gray); 
+            text-align: left; cursor: pointer; border-radius: 12px; margin-bottom: 10px; 
+            font-size: 15px; transition: 0.3s; display: flex; align-items: center; gap: 10px;
+        }
+        .sidebar button.active { background: #151515; color: var(--accent); font-weight: bold; }
+
+        .form-container { max-width: 600px; background: var(--card-bg); padding: 30px; border-radius: 25px; border: 1px solid var(--border); }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 8px; font-size: 13px; color: var(--text-gray); }
+        
+        input[type="text"], input[type="number"], input[type="password"] { 
+            width: 100%; padding: 14px; background: #080808; border: 1px solid var(--border); 
+            color: white; border-radius: 12px; outline: none; transition: 0.3s;
+        }
+        input:focus { border-color: var(--accent); }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; padding: 20px 5%; }
+        .product-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 20px; overflow: hidden; transition: 0.3s; position: relative; }
+        
+        /* Image Slider Styles */
+        .img-container { width: 100%; height: 250px; background: #000; position: relative; display: flex; justify-content: center; align-items: center; }
+        .img-container img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        
+        /* Logo Overlay */
+        .card-logo-overlay {
+            position: absolute; top: 10px; right: 10px; width: 35px; height: 35px;
+            border-radius: 50%; border: 1px solid var(--accent); z-index: 10;
+            background: rgba(0,0,0,0.5); padding: 2px;
+        }
+
+        .thumb-bar { display: flex; justify-content: center; gap: 5px; padding: 10px; background: #0a0a0a; }
+        .thumb-bar img { width: 40px; height: 40px; object-fit: cover; border-radius: 5px; cursor: pointer; border: 1px solid #333; opacity: 0.6; }
+        .thumb-bar img:hover, .thumb-bar img.active { opacity: 1; border-color: var(--accent); }
+
+        .info { padding: 20px; }
+        .btn { padding: 12px 20px; background: var(--accent); border: none; font-weight: 800; border-radius: 12px; cursor: pointer; color: black; transition: 0.3s; }
+        .btn:hover { opacity: 0.9; transform: scale(1.02); }
+
+        /* Telegram Link Style */
+        .tg-link {
+            display: inline-block; color: #0088cc; text-decoration: none;
+            font-size: 13px; margin-bottom: 8px; font-weight: 600;
+        }
+        .tg-link:hover { text-decoration: underline; }
+
+        footer { background: #080808; padding: 40px 5% 20px; border-top: 1px solid var(--border); margin-top: auto; }
+        .footer-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 30px; }
+        .footer-col h4 { color: var(--accent); margin-bottom: 15px; font-size: 12px; text-transform: uppercase; }
+        .footer-col p, .footer-col a { color: var(--text-gray); text-decoration: none; font-size: 11px; margin-bottom: 6px; display: block; }
+        .social-icons { display: flex; gap: 10px; margin-top: 10px; }
+        .social-icons a { font-size: 18px; color: white; background: #1a1a1a; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+
+        .admin-link { color: #222; cursor: pointer; font-size: 10px; transition: 0.3s; }
+        .admin-link:hover { color: var(--accent); text-decoration: underline; }
+
+        @media (max-width: 768px) {
+            #admin-panel { flex-direction: column; }
+            .sidebar { width: 100%; display: flex; overflow-x: auto; padding: 10px; gap: 10px; }
+            .sidebar button { white-space: nowrap; margin-bottom: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="toast">Xabar</div>
+
+    <div id="confirm-modal" class="confirm-overlay hidden">
+        <div class="confirm-box">
+            <h3 style="margin-top:0">O'chirilsinmi?</h3>
+            <p style="color:var(--text-gray); font-size:14px">Ushbu amalni ortga qaytarib bo'lmaydi.</p>
+            <div style="display: flex; gap: 10px; margin-top: 25px;">
+                <button class="btn" style="flex: 1; background: #222; color: white;" onclick="closeConfirm()">BEKOR</button>
+                <button id="final-delete-btn" class="btn" style="flex: 1; background: var(--delete-color); color: white;">O'CHIRISH</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="login-modal" class="confirm-overlay hidden" style="z-index: 2001;">
+        <div class="confirm-box" style="max-width: 320px;">
+            <i class="fas fa-times close-modal" onclick="closeLogin()"></i>
+            <h2 style="color:var(--accent); margin-bottom: 20px;">Admin Kirish</h2>
+            <input type="text" id="admin-user" placeholder="Login" style="margin-bottom:10px">
+            <input type="password" id="admin-pass" placeholder="Parol">
+            <button class="btn" style="width: 100%; margin-top: 20px;" onclick="checkLogin()">KIRISH</button>
+        </div>
+    </div>
+
+    <header id="main-header">
+        <a href="#" onclick="location.reload()"><img src="vib.png" alt="Logo" class="logo-img" onerror="this.src='https://via.placeholder.com/50'"></a>
+        <div class="search-box">
+            <input type="text" id="search-input" placeholder="Mahsulotlarni qidirish..." oninput="searchProducts()">
+        </div>
+    </header>
+
+    <div id="user-panel">
+        <div id="user-grid" class="grid">Yuklanmoqda...</div>
+    </div>
+
+    <div id="admin-panel" class="hidden">
+        <div class="sidebar">
+            <button id="tab1" class="active" onclick="toggleTab('add')"><i class="fas fa-plus-circle"></i> Qo'shish</button>
+            <button id="tab2" onclick="toggleTab('list')"><i class="fas fa-box-open"></i> Ro'yxat</button>
+            <button onclick="location.reload()" style="color: var(--delete-color); margin-top: auto;"><i class="fas fa-sign-out-alt"></i> Chiqish</button>
+        </div>
+        
+        <div style="flex: 1; padding: 30px; overflow-y: auto;">
+            <div id="add-view">
+                <h2 id="form-title" style="margin-bottom: 25px;">✨ Yangi mahsulot qo'shish</h2>
+                <div class="form-container">
+                    <input type="hidden" id="p-id">
+                    
+                    <div class="form-group">
+                        <label>Mahsulot rasmlari (URL manzillari)</label>
+                        <input type="text" id="p-img1" placeholder="Asosiy rasm URL" style="margin-bottom: 8px;">
+                        <input type="text" id="p-img2" placeholder="Rasm 2 URL" style="margin-bottom: 8px;">
+                        <input type="text" id="p-img3" placeholder="Rasm 3 URL" style="margin-bottom: 8px;">
+                        <input type="text" id="p-img4" placeholder="Rasm 4 URL">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Mahsulot nomi</label>
+                        <input type="text" id="p-name" placeholder="Masalan: iPhone 15 Pro Max">
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div class="form-group">
+                            <label>Narxi (so'm)</label>
+                            <input type="text" id="p-price" placeholder="12 000 000">
+                        </div>
+                        <div class="form-group">
+                            <label>Soni (0 = cheklanmagan)</label>
+                            <input type="number" id="p-qty" placeholder="10">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Kategoriya</label>
+                        <input type="text" id="p-cat" placeholder="Smartfonlar">
+                    </div>
+
+                    <button class="btn" style="width: 100%; height: 50px; margin-top: 20px;" onclick="saveProduct()">MAHSULOTNI SAQLASH</button>
+                </div>
+            </div>
+
+            <div id="list-view" class="hidden">
+                <h2 style="margin-bottom: 25px;">📦 Barcha mahsulotlar</h2>
+                <div id="admin-grid" class="grid" style="padding: 0;"></div>
+            </div>
+        </div>
+    </div>
+
+    <footer id="main-footer">
+        <div class="footer-grid">
+            <div class="footer-col">
+                <h4>BIZ HAQIMIZDA</h4>
+                <p><strong>Vip Bro</strong> - 3 yillik tajriba. Sifat va tezkor yetkazib berish.</p>
+                <div class="social-icons">
+                    <a href="https://t.me/+QoEHYGE2GFQ2NTJi"><i class="fab fa-telegram"></i></a>
+                    <a href="https://www.instagram.com/vip.bro__?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw=="><i class="fab fa-instagram"></i></a>
+                    <a href=""><i class="fab fa-facebook"></i></a>
+                </div>
+            </div>
+            <div class="footer-col">
+                <h4>ALOQA</h4>
+                <p><i class="fas fa-phone" style="color:var(--accent)"></i> +998901234567</p>
+                <p><i class="fas fa-map-marker-alt" style="color:var(--accent)"></i> Toshkent</p>
+            </div>
+            <div class="footer-col">
+                <h4>XIZMATLAR</h4>
+                <a href="#">Yetkazib berish</a>
+                <a href="#">To'lovlar</a>
+                <a href="#">Kafolat</a>
+            </div>
+        </div>
+        <div style="border-top: 1px solid #222; padding-top: 20px; display: flex; justify-content: space-between; align-items: center;">
+            <p style="color: #444; font-size: 10px;">&copy; 2026 VIP BRO.</p>
+            <span class="admin-link" onclick="openLogin()">ADMIN PANEL</span>
+        </div>
+    </footer>
+
+    <script>
+        const API_URL = "https://690b2ee56ad3beba00f3cf78.mockapi.io/Market";
+        let products = [];
+        let editMode = false;
+        let deleteId = null;
+
+        function showToast(msg, type = 'success') {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.background = type === 'success' ? 'var(--success)' : 'var(--delete-color)';
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
+
+        async function fetchProducts() {
+            try {
+                const res = await fetch(API_URL);
+                products = await res.json();
+                render(products);
+            } catch (err) { showToast("Xato!", 'error'); }
+        }
+
+        function openLogin() { document.getElementById('login-modal').classList.remove('hidden'); }
+        function closeLogin() { document.getElementById('login-modal').classList.add('hidden'); }
+
+        function checkLogin() {
+            if(document.getElementById('admin-user').value === 'admin' && 
+               document.getElementById('admin-pass').value === 'negir') {
+                 closeLogin();
+                 document.getElementById('user-panel').classList.add('hidden');
+                 document.getElementById('main-header').classList.add('hidden');
+                 document.getElementById('main-footer').classList.add('hidden');
+                 document.getElementById('admin-panel').classList.remove('hidden');
+                 showToast("Xush kelibsiz!"); fetchProducts();
+            } else { showToast("Parol xato!", 'error'); }
+        }
+
+        function changeImg(el, newSrc) {
+            const container = el.closest('.product-card').querySelector('.main-img');
+            container.src = newSrc;
+            el.parentElement.querySelectorAll('img').forEach(img => img.classList.remove('active'));
+            el.classList.add('active');
+        }
+
+        function render(data) {
+            const ugrid = document.getElementById('user-grid');
+            const agrid = document.getElementById('admin-grid');
+            ugrid.innerHTML = ''; agrid.innerHTML = '';
+
+            data.forEach(p => {
+                const imgs = [p.img1, p.img2, p.img3, p.img4].filter(src => src && src.trim() !== "");
+                const primaryImg = imgs[0] || 'https://via.placeholder.com/250';
+                
+                // Cheksiz miqdor tekshiruvi
+                const qtyText = (p.qty == 0 || !p.qty) ? "Soni cheklanmagan" : p.qty + " dona";
+
+                let thumbHtml = '';
+                if(imgs.length > 1) {
+                    thumbHtml = `<div class="thumb-bar">` + 
+                        imgs.map((src, i) => `<img src="${src}" class="${i===0?'active':''}" onclick="changeImg(this, '${src}')" onerror="this.style.display='none'">`).join('') + 
+                        `</div>`;
+                }
+
+                const cardBase = `
+                    <div class="product-card">
+                        <img src="vib.png" class="card-logo-overlay" onerror="this.style.display='none'">
+                        <div class="img-container">
+                            <img src="${primaryImg}" class="main-img" onerror="this.src='https://via.placeholder.com/250'">
+                        </div>
+                        ${thumbHtml}
+                        <div class="info">
+                            <small style="color:var(--accent)">${p.cat || 'Premium'}</small>
+                            <h3 style="margin:8px 0; font-size:18px">${p.name}</h3>
+                            <div class="price" style="font-weight:bold; color:var(--accent); margin-bottom:10px;">${p.price} so'm</div>
+                            
+                            <a href="https://t.me/+QoEHYGE2GFQ2NTJi" target="_blank" class="tg-link">
+                                <i class="fab fa-telegram"></i> To'liq ma'lumot (Telegram)
+                            </a>
+                            
+                            <p style="font-size:12px; color:gray; margin-top:5px">Omborda: ${qtyText}</p>
+                `;
+
+                ugrid.innerHTML += cardBase + `<a target="_blank" href="https://t.me/+QoEHYGE2GFQ2NTJi"><button class="btn" style="width:100%; margin-top:15px">SOTIB OLISH</button></div></div></a>`;
+                
+                agrid.innerHTML += cardBase + `
+                    <div style="display:flex; gap:8px; margin-top:15px">
+                        <button onclick="editProduct(${p.id})" style="flex:1; background:var(--edit-color); border:none; padding:10px; border-radius:10px; cursor:pointer; font-weight:bold">Tahrir</button>
+                        <button onclick="openConfirm(${p.id})" style="flex:1; background:var(--delete-color); color:white; border:none; padding:10px; border-radius:10px; cursor:pointer; font-weight:bold">O'chirish</button>
+                    </div></div></div>`;
+            });
+        }
+
+        async function saveProduct() {
+            const id = document.getElementById('p-id').value;
+            const item = {
+                img1: document.getElementById('p-img1').value,
+                img2: document.getElementById('p-img2').value,
+                img3: document.getElementById('p-img3').value,
+                img4: document.getElementById('p-img4').value,
+                name: document.getElementById('p-name').value,
+                price: document.getElementById('p-price').value,
+                qty: document.getElementById('p-qty').value || 0,
+                cat: document.getElementById('p-cat').value
+            };
+
+            if(!item.name || !item.price || !item.img1) return showToast("Kamida bitta rasm va nomni kiriting", "error");
+
+            const method = editMode ? 'PUT' : 'POST';
+            const url = editMode ? `${API_URL}/${id}` : API_URL;
+            
+            showToast("Saqlanmoqda...");
+            try {
+                await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(item) });
+                showToast("Muvaffaqiyatli saqlandi!");
+                resetForm();
+                await fetchProducts();
+                toggleTab('list');
+            } catch(e) { showToast("Xatolik yuz berdi", "error"); }
+        }
+
+        function resetForm() {
+            document.getElementById('p-id').value = "";
+            document.getElementById('p-img1').value = "";
+            document.getElementById('p-img2').value = "";
+            document.getElementById('p-img3').value = "";
+            document.getElementById('p-img4').value = "";
+            document.getElementById('p-name').value = "";
+            document.getElementById('p-price').value = "";
+            document.getElementById('p-qty').value = "";
+            document.getElementById('p-cat').value = "";
+            editMode = false;
+            document.getElementById('form-title').innerText = "✨ Yangi mahsulot qo'shish";
+        }
+
+        function editProduct(id) {
+            const p = products.find(x => x.id == id);
+            document.getElementById('p-id').value = p.id;
+            document.getElementById('p-img1').value = p.img1 || "";
+            document.getElementById('p-img2').value = p.img2 || "";
+            document.getElementById('p-img3').value = p.img3 || "";
+            document.getElementById('p-img4').value = p.img4 || "";
+            document.getElementById('p-name').value = p.name;
+            document.getElementById('p-price').value = p.price;
+            document.getElementById('p-qty').value = p.qty;
+            document.getElementById('p-cat').value = p.cat;
+            editMode = true;
+            document.getElementById('form-title').innerText = "📝 Tahrirlash: " + p.name;
+            toggleTab('add');
+        }
+
+        function openConfirm(id) { deleteId = id; document.getElementById('confirm-modal').classList.remove('hidden'); }
+        function closeConfirm() { document.getElementById('confirm-modal').classList.add('hidden'); }
+
+        document.getElementById('final-delete-btn').onclick = async () => {
+            await fetch(`${API_URL}/${deleteId}`, { method: 'DELETE' });
+            showToast("O'chirildi", 'error');
+            closeConfirm(); fetchProducts();
+        };
+
+        function toggleTab(tab) {
+            document.getElementById('add-view').classList.toggle('hidden', tab !== 'add');
+            document.getElementById('list-view').classList.toggle('hidden', tab !== 'list');
+            document.getElementById('tab1').classList.toggle('active', tab === 'add');
+            document.getElementById('tab2').classList.toggle('active', tab === 'list');
+            if(tab === 'add' && !editMode) resetForm();
+        }
+
+        function searchProducts() {
+            const q = document.getElementById('search-input').value.toLowerCase();
+            render(products.filter(p => p.name.toLowerCase().includes(q)));
+        }
+
+        fetchProducts();
+    </script>
+</body> 
+</html>
